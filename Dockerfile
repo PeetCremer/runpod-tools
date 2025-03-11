@@ -17,7 +17,8 @@ RUN apt-get update && \
     apt-get update && apt-get install -y --no-install-recommends \
     python3.12 python3.12-dev python3.12-venv libpython3.12-dev && \
     # Make python3 command point to python3.12
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 && \
+    ln -sf /usr/bin/python3.12 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.12 /usr/bin/python && \
     # Install pip for Python 3.12 and create symlink
     curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && \
     ln -sf /usr/local/bin/pip /usr/bin/pip3 && \
@@ -25,12 +26,11 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set up working directory
-RUN mkdir -p /workspace
 WORKDIR /workspace
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 \
-    && pip3 install --no-cache-dir comfy-cli jupyterlab triton sageattention
+RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && \
+    pip3 install --no-cache-dir comfy-cli jupyterlab triton sageattention
 
 # Install ComfyUI and dependencies
 RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia
