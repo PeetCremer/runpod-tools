@@ -1,5 +1,5 @@
 #
-name: Create and publish a Docker image to GitHub Packages
+name: Build and publish a Docker image to GitHub Packages
 
 # Configures this workflow to run every time a change is pushed to the branch called `release`.
 on:
