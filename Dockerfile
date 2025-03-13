@@ -11,7 +11,9 @@ RUN apt-get update && \
     curl \
     git \
     software-properties-common \
-    wget && \
+    wget \
+    libgl1 \
+    libglib2.0-0 && \
     # Install Python 3.12
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -30,7 +32,7 @@ WORKDIR /workspace
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && \
-    pip3 install --no-cache-dir comfy-cli diffusers opencv-python-headless jupyterlab triton sageattention
+    pip3 install --no-cache-dir comfy-cli diffusers jupyterlab triton sageattention
 
 # Install ComfyUI and dependencies
 RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia
