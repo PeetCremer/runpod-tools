@@ -30,7 +30,7 @@ WORKDIR /workspace
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && \
-    pip3 install --no-cache-dir comfy-cli jupyterlab triton sageattention
+    pip3 install --no-cache-dir comfy-cli diffusers opencv-python-headless jupyterlab triton sageattention
 
 # Install ComfyUI and dependencies
 RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia
