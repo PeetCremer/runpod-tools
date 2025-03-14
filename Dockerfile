@@ -38,7 +38,7 @@ RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https:/
 RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia
 
 # Install workflow dependencies
-COPY ./workflow_deps .
+COPY ./workflow_deps ./workflow_deps
 RUN for WORKFLOW_DEPS in workflow_deps/*_deps.json; do comfy --recent node install-deps --deps ${WORKFLOW_DEPS}; done
 
 # Purge pip cache to save space
