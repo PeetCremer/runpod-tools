@@ -18,7 +18,7 @@ env:
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # Prevent runaway builds
+    timeout-minutes: 25 # Prevent runaway builds
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
     permissions:
       contents: read
