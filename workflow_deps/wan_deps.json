@@ -1,0 +1,45 @@
+{
+    "custom_nodes": {
+        "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-GIMM-VFI": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/rgthree/rgthree-comfy": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/pythongosssss/ComfyUI-Custom-Scripts": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/evanspearman/ComfyMath": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/ltdrdata/ComfyUI-Impact-Pack": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/facok/ComfyUI-HunyuanVideoMultiLora": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-KJNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        }
+    },
+    "unknown_nodes": [
+        "SetNode",
+        "GetNode",
+        "UnetLoaderGGUFDisTorchMultiGPU"
+    ]
+}

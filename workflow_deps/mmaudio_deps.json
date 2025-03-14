@@ -1,0 +1,29 @@
+{
+    "custom_nodes": {
+        "https://github.com/pythongosssss/ComfyUI-Custom-Scripts": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/807502278/ComfyUI-WJNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/rgthree/rgthree-comfy": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/ltdrdata/ComfyUI-Impact-Pack": {
+            "state": "not-installed",
+            "hash": "-"
+        }
+    },
+    "unknown_nodes": [
+        "MMAudioSampler",
+        "MMAudioFeatureUtilsLoader",
+        "MMAudioModelLoader"
+    ]
+}

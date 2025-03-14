@@ -1,0 +1,55 @@
+{
+    "custom_nodes": {
+        "https://github.com/rgthree/rgthree-comfy": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/facok/ComfyUI-HunyuanVideoMultiLora": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/chrisgoringe/cg-use-everywhere": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/ltdrdata/ComfyUI-Impact-Pack": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/TTPlanetPig/Comfyui_TTP_Toolset": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Jonseed/ComfyUI-Detail-Daemon": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/cubiq/ComfyUI_essentials": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/yolain/ComfyUI-Easy-Use": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/alt-key-project/comfyui-dream-project": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-KJNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        }
+    },
+    "unknown_nodes": [
+        "HYFetaEnhance"
+    ]
+}
