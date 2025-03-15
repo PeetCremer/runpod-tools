@@ -34,20 +34,24 @@ WORKDIR /workspace
 RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && \
     pip3 install --no-cache-dir comfy-cli diffusers jupyterlab triton sageattention
 
+
 # Install ComfyUI and dependencies
-RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia
-
-# Install workflow dependencies
 COPY ./workflow_deps ./workflow_deps
-RUN for WORKFLOW_DEPS in workflow_deps/*_deps.json; do comfy --recent node install-deps --deps ${WORKFLOW_DEPS}; done
+RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia && \
+    # HunyuanLoom is not indexed
+    git -C ComfyUI/custom_nodes clone https://github.com/logtd/ComfyUI-HunyuanLoom.git && \
+    # ComfyUI-MMAudio is not indexed
+    git -C ComfyUI/custom_nodes clone https://github.com/kijai/ComfyUI-MMAudio && \
+    pip3 install -r ComfyUI/custom_nodes/ComfyUI-MMAudio/requirements.txt && \
+    # Install workflow dependencies
+    for WORKFLOW_DEPS in workflow_deps/*_deps.json; do comfy --recent node install-deps --deps ${WORKFLOW_DEPS}; done && \
+    # purge cache to save space 
+    pip3 cache purge
 
-# Purge pip cache to save space
-RUN pip3 cache purge
+# Notebook to run ComfyUI should be already available in workspace
+COPY ./run_comfy.ipynb ./run_comfy.ipynb
 
-
-# Expose ports for JupyterLab
+# Run Jupyterlab
 EXPOSE 8888
-
-# Command to run on container startup
 SHELL ["/bin/bash", "-c"]
 CMD jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser --FileContentsManager.delete_to_trash=False --ServerApp.preferred_dir=/workspace --ServerApp.token=${JUPYTER_PASSWORD} --ServerApp.allow_origin=https://${RUNPOD_POD_ID}-8888.proxy.runpod.net
