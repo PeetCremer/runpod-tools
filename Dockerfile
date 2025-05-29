@@ -53,5 +53,6 @@ COPY ./run_comfy.ipynb ./run_comfy.ipynb
 
 # Run Jupyterlab
 EXPOSE 8888
+EXPOSE 8188
 SHELL ["/bin/bash", "-c"]
 CMD jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser --FileContentsManager.delete_to_trash=False --ServerApp.preferred_dir=/workspace --ServerApp.token=${JUPYTER_PASSWORD} --ServerApp.allow_origin=https://${RUNPOD_POD_ID}-8888.proxy.runpod.net

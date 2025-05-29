@@ -15,10 +15,10 @@ The main artifact of this project is a docker container that can run ComfyUI and
 To build the Docker container with the default set of dependencies (suitable for most ComfyUI image and video generation tasks), simply run:
 
 ```sh
-docker build --platform=linux/amd64 -t runpod-tools:latest .
+docker build --platform=linux/amd64 -t runpod-tools:release .
 ```
 
-This will create a Docker image named `runpod-tools:latest` using the default dependencies specified in the repository. You do not need to modify any files or add custom workflows for this basic build.
+This will create a Docker image named `runpod-tools:release` using the default dependencies specified in the repository. You do not need to modify any files or add custom workflows for this basic build.
 
 ### Building the docker container with your dependencies
 
@@ -45,7 +45,7 @@ If you want to use custom ComfyUI workflows or require additional Python package
 4. **Build your custom Docker image**  
    Now, build the Docker container. It will include both the default and your workflow-specific dependencies:
    ```sh
-   docker build --platform=linux/amd64 -t runpod-tools:latest .
+   docker build --platform=linux/amd64 -t runpod-tools:release .
    ```
 
 Your custom Docker image is now ready to use, with all the dependencies needed for your specific ComfyUI workflows.
@@ -66,7 +66,7 @@ docker run -p 8888:8888 \
   -e JUPYTER_PASSWORD=yourpassword \
   -e HUGGINGFACE_TOKEN=your_hf_token \
   -e CIVITAI_TOKEN=your_civitai_token \
-  runpod-tools:latest
+  runpod-tools:release
 ```
 
 **Features:**
@@ -77,3 +77,32 @@ docker run -p 8888:8888 \
 
 **Security note:**  
 Always set a strong password for `JUPYTER_PASSWORD` to prevent unauthorized access to your Jupyter Lab server.
+
+## Running on Modal
+
+You can also run the ComfyUI environment using [Modal](https://modal.com/), which provides GPU-backed cloud execution with easy port forwarding for Jupyter Lab and ComfyUI.
+
+### Prerequisites
+- Ensure you have [Modal's Python SDK](https://modal.com/docs/guide/getting-started) installed (`uv sync` first).
+- Set the following environment variables, either in your shell or in a `.env` file in the project root:
+  - `JUPYTER_PASSWORD`: Password to protect your Jupyter Lab server (required)
+  - `HUGGINGFACE_TOKEN`: (optional, for downloading models from Hugging Face)
+  - `CIVITAI_TOKEN`: (optional, for downloading models from CivitAI)
+
+### How to run the Modal app
+
+```sh
+modal run modal_app.py
+```
+
+This will launch the Modal app using the runpod-tools:release Docker image from dockerhub. When running, it will print tunnel URLs for both Jupyter Lab and ComfyUI, for example:
+
+```
+Jupyter Lab tunnel URL: https://...modal.run
+ComfyUI tunnel URL: https://...modal.run
+Tunnels are active. Your services should be accessible if running in the container.
+```
+
+Open the Jupyter Lab tunnel URL in your browser and log in with your password. The working directory includes the `run_comfy.ipynb` notebook, which you can use to start ComfyUI directly within the Modal environment.
+
+**Note:** Always set a strong password for `JUPYTER_PASSWORD` to prevent unauthorized access to your Jupyter Lab server.
