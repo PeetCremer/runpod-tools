@@ -1,0 +1,22 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project goal
+look into [README.md](mdc:README.md) to get an overview of the overall goal of the project.
+
+## Project commands
+
+- Add a package:
+  uv add <package>
+
+- Remove a package:
+  uv remove <package>
+
+- Sync environment (install all dependencies):
+  uv sync
+
+- Run a script or command in the project environment:
+  uv run <command>
+
