@@ -37,12 +37,11 @@ custom_image = (
     modal.Image.from_registry("jaezred/runpod-tools:release") # pyright: ignore[reportUnknownMemberType]
     .env(env_vars)
     .pip_install("python-dotenv==1.1.0") # Workaround for modal raising error at container startup
-    .run_commands("cd /workspace") # Workaround for modal not having its entrypoint in the Docker WORKDIR
 )
 app = modal.App()
 
 
-@app.function(image=custom_image, gpu="L40S")
+@app.function(image=custom_image, gpu="L40S", timeout=8*60*60) # 8 hours timeout
 def run_custom_container() -> None:
     import os
     import subprocess
