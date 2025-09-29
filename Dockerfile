@@ -38,8 +38,6 @@ RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https:/
 # Install ComfyUI and dependencies
 COPY ./workflow_deps ./workflow_deps
 RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia && \
-    # HunyuanLoom is not indexed
-    git -C ComfyUI/custom_nodes clone https://github.com/logtd/ComfyUI-HunyuanLoom.git && \
     # ComfyUI-MMAudio is not indexed
     git -C ComfyUI/custom_nodes clone https://github.com/kijai/ComfyUI-MMAudio && \
     pip3 install -r ComfyUI/custom_nodes/ComfyUI-MMAudio/requirements.txt && \

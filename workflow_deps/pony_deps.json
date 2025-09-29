@@ -1,10 +1,6 @@
 {
     "custom_nodes": {
-        "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes": {
-            "state": "not-installed",
-            "hash": "-"
-        },
-        "https://github.com/chrisgoringe/cg-image-picker": {
+        "https://github.com/rgthree/rgthree-comfy": {
             "state": "not-installed",
             "hash": "-"
         },
@@ -12,10 +8,12 @@
             "state": "not-installed",
             "hash": "-"
         },
-        "https://github.com/rgthree/rgthree-comfy": {
+        "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes": {
             "state": "not-installed",
             "hash": "-"
         }
     },
-    "unknown_nodes": []
+    "unknown_nodes": [
+        "Preview Chooser"
+    ]
 }
