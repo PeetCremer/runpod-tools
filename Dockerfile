@@ -1,5 +1,5 @@
 # Start from NVIDIA CUDA 12.4.1 development image with Ubuntu 22.04
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -31,7 +31,7 @@ RUN apt-get update && \
 WORKDIR /workspace
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && \
+RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126 && \
     pip3 install --no-cache-dir comfy-cli diffusers jupyterlab triton sageattention
 
 
