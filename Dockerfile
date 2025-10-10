@@ -17,15 +17,13 @@ RUN apt-get update && \
     # Install Python 3.12
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 python3.12-dev python3.12-venv libpython3.12-dev && \
-    # Make python3 command point to python3.12
-    ln -sf /usr/bin/python3.12 /usr/bin/python3 && \
-    ln -sf /usr/bin/python3.12 /usr/bin/python && \
-    # Install pip for Python 3.12 and create symlink
-    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && \
-    ln -sf /usr/local/bin/pip /usr/bin/pip3 && \
+    python3.12 python3.12-dev python3.12-venv libpython3.12-dev python3-pip && \
     # Cleanup
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set up virtual environment to be used globally
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Set up working directory
 WORKDIR /workspace

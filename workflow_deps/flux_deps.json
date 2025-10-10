@@ -1,22 +1,6 @@
 {
     "custom_nodes": {
-        "https://github.com/rgthree/rgthree-comfy": {
-            "state": "not-installed",
-            "hash": "-"
-        },
-        "https://github.com/city96/ComfyUI-GGUF": {
-            "state": "not-installed",
-            "hash": "-"
-        },
-        "https://github.com/kijai/ComfyUI-Florence2": {
-            "state": "not-installed",
-            "hash": "-"
-        },
         "https://github.com/Fannovel16/comfyui_controlnet_aux": {
-            "state": "not-installed",
-            "hash": "-"
-        },
-        "https://github.com/807502278/ComfyUI-WJNodes": {
             "state": "not-installed",
             "hash": "-"
         },
@@ -24,15 +8,11 @@
             "state": "not-installed",
             "hash": "-"
         },
-        "https://github.com/kijai/ComfyUI-KJNodes": {
+        "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes": {
             "state": "not-installed",
             "hash": "-"
         },
-        "https://github.com/kijai/ComfyUI-segment-anything-2": {
-            "state": "not-installed",
-            "hash": "-"
-        },
-        "https://github.com/chrisgoringe/cg-use-everywhere": {
+        "https://github.com/city96/ComfyUI-GGUF": {
             "state": "not-installed",
             "hash": "-"
         },
@@ -40,10 +20,36 @@
             "state": "not-installed",
             "hash": "-"
         },
-        "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes": {
+        "https://github.com/rgthree/rgthree-comfy": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/807502278/ComfyUI-WJNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/iacoposk8/ComfyUI-Fooocus-Inpaint-Wrapper": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-KJNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-Florence2": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/chrisgoringe/cg-use-everywhere": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-segment-anything-2": {
             "state": "not-installed",
             "hash": "-"
         }
     },
-    "unknown_nodes": []
+    "unknown_nodes": [
+        "FluxGuidance"
+    ]
 }

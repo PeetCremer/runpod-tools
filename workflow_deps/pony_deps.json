@@ -1,14 +1,18 @@
 {
     "custom_nodes": {
+        "https://github.com/iacoposk8/ComfyUI-Fooocus-Inpaint-Wrapper": {
+            "state": "not-installed",
+            "hash": "-"
+        },
         "https://github.com/rgthree/rgthree-comfy": {
             "state": "not-installed",
             "hash": "-"
         },
-        "https://github.com/ssitu/ComfyUI_UltimateSDUpscale": {
+        "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes": {
             "state": "not-installed",
             "hash": "-"
         },
-        "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes": {
+        "https://github.com/ssitu/ComfyUI_UltimateSDUpscale": {
             "state": "not-installed",
             "hash": "-"
         }

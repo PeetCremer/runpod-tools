@@ -1,0 +1,139 @@
+{
+    "custom_nodes": {
+        "https://github.com/ShmuelRonen/ComfyUI-FramePackWrapper_Plus": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/M1kep/Comfy_KepListStuff": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-GIMM-VFI": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/FizzleDorf/ComfyUI_FizzNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/EllangoK/ComfyUI-post-processing-nodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-KJNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/jamesWalker55/comfyui-various": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/evanspearman/ComfyMath": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/vrgamegirl19/comfyui-vrgamedevgirl": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/TinyTerra/ComfyUI_tinyterraNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/pythongosssss/ComfyUI-Custom-Scripts": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/11dogzi/Comfyui-ergouzi-Nodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/DragonDiffusionbyBoyo/Boyonodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/ltdrdata/ComfyUI-Impact-Pack": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/rookiepsi/comfyui-extended": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-Florence2": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Derfuu/Derfuu_ComfyUI_ModdedNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/wywywywy/ComfyUI-pause": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/rgthree/rgthree-comfy": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/807502278/ComfyUI-WJNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-MelBandRoFormer": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-WanVideoWrapper": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Eagle-CN/ComfyUI-Addoor": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Gourieff/ComfyUI-ReActor": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/iacoposk8/ComfyUI-Fooocus-Inpaint-Wrapper": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Smirnov75/ComfyUI-mxToolkit": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/yolain/ComfyUI-Easy-Use": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/cubiq/ComfyUI_essentials": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/ltdrdata/ComfyUI-Inspire-Pack": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        }
+    },
+    "unknown_nodes": [
+        "GetNode",
+        "70e14245-3789-4aa6-a982-7aa2f0ab0872",
+        "MMAudioSampler",
+        "340f324c-f8b3-46e1-a35b-4561ecd7027c",
+        "PrimitiveInt",
+        "MMAudioModelLoader",
+        "SetNode",
+        "MarkdownNote",
+        "MMAudioFeatureUtilsLoader"
+    ]
+}

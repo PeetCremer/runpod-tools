@@ -1,13 +1,18 @@
 {
     "custom_nodes": {
-        "https://github.com/rgthree/rgthree-comfy": {
+        "https://github.com/807502278/ComfyUI-WJNodes": {
             "state": "not-installed",
             "hash": "-"
         },
-        "https://github.com/807502278/ComfyUI-WJNodes": {
+        "https://github.com/rgthree/rgthree-comfy": {
             "state": "not-installed",
             "hash": "-"
         }
     },
-    "unknown_nodes": []
+    "unknown_nodes": [
+        "EmptySD3LatentImage",
+        "FluxKontextImageScale",
+        "ReferenceLatent",
+        "FluxGuidance"
+    ]
 }
