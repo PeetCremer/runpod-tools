@@ -1,8 +1,14 @@
-# Start from NVIDIA CUDA 12.4.1 development image with Ubuntu 22.04
+# Start from NVIDIA CUDA 12.6.3 with cuDNN on Ubuntu 24.04
 FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
 
 # Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Set shell to bash for better scripting support
+SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && \
     # Install basic dependencies
@@ -14,23 +20,29 @@ RUN apt-get update && \
     wget \
     libgl1 \
     libglib2.0-0 && \
-    # Install Python 3.12
+    # Install Python 3.12 from deadsnakes PPA
     add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 python3.12-dev python3.12-venv libpython3.12-dev python3-pip && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-dev \
+    python3.12-venv \
+    libpython3.12-dev \
+    python3-pip && \
     # Cleanup
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set up virtual environment to be used globally
-RUN python3 -m venv /opt/venv
+RUN python3.12 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Set up working directory
 WORKDIR /workspace
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126 && \
-    pip3 install --no-cache-dir comfy-cli diffusers jupyterlab triton sageattention
+# Using pip (not pip3) since we're in a venv
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126 && \
+    pip install --no-cache-dir comfy-cli diffusers jupyterlab triton sageattention
 
 
 # Install ComfyUI and dependencies
@@ -38,17 +50,22 @@ COPY ./workflow_deps ./workflow_deps
 RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia && \
     # ComfyUI-MMAudio is not indexed
     git -C ComfyUI/custom_nodes clone https://github.com/kijai/ComfyUI-MMAudio && \
-    pip3 install -r ComfyUI/custom_nodes/ComfyUI-MMAudio/requirements.txt && \
+    pip install -r ComfyUI/custom_nodes/ComfyUI-MMAudio/requirements.txt && \
     # Install workflow dependencies
     for WORKFLOW_DEPS in workflow_deps/*_deps.json; do comfy --recent node install-deps --deps ${WORKFLOW_DEPS}; done && \
     # purge cache to save space 
-    pip3 cache purge
+    pip cache purge
 
 # Notebook to run ComfyUI should be already available in workspace
 COPY ./run_comfy.ipynb ./run_comfy.ipynb
 
-# Run Jupyterlab
+# Expose ports for Jupyter Lab and ComfyUI
 EXPOSE 8888
 EXPOSE 8188
-SHELL ["/bin/bash", "-c"]
+
+# Add healthcheck to verify Jupyter Lab is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8888/api || exit 1
+
+# Run Jupyterlab
 CMD jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser --FileContentsManager.delete_to_trash=False --ServerApp.preferred_dir=/workspace --ServerApp.token=${JUPYTER_PASSWORD} --ServerApp.allow_origin=https://${RUNPOD_POD_ID}-8888.proxy.runpod.net
