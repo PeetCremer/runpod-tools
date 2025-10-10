@@ -52,9 +52,7 @@ RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia && \
     git -C ComfyUI/custom_nodes clone https://github.com/kijai/ComfyUI-MMAudio && \
     pip install -r ComfyUI/custom_nodes/ComfyUI-MMAudio/requirements.txt && \
     # Install workflow dependencies
-    for WORKFLOW_DEPS in workflow_deps/*_deps.json; do comfy --recent node install-deps --deps ${WORKFLOW_DEPS}; done && \
-    # purge cache to save space 
-    pip cache purge
+    for WORKFLOW_DEPS in workflow_deps/*_deps.json; do comfy --recent node install-deps --deps ${WORKFLOW_DEPS}; done
 
 # Notebook to run ComfyUI should be already available in workspace
 COPY ./run_comfy.ipynb ./run_comfy.ipynb
