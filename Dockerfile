@@ -29,6 +29,11 @@ RUN apt-get update && \
     python3.12-venv \
     libpython3.12-dev \
     python3-pip && \
+<<<<<<< Updated upstream
+=======
+    # Install fonts (required by some ComfyUI packages)
+    fonts-dejavu-core && \
+>>>>>>> Stashed changes
     # Cleanup
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
