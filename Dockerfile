@@ -11,29 +11,20 @@ ENV DEBIAN_FRONTEND=noninteractive \
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && \
-    # Install basic dependencies
+    # Install basic dependencies and Python 3.12 from Ubuntu repositories
     apt-get install -y --no-install-recommends \
     aria2 \
     curl \
     git \
-    software-properties-common \
     wget \
     libgl1 \
-    libglib2.0-0 && \
-    # Install Python 3.12 from deadsnakes PPA
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
     python3.12 \
     python3.12-dev \
     python3.12-venv \
     libpython3.12-dev \
-    python3-pip && \
-<<<<<<< Updated upstream
-=======
-    # Install fonts (required by some ComfyUI packages)
+    python3-pip \
     fonts-dejavu-core && \
->>>>>>> Stashed changes
     # Cleanup
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -61,6 +52,8 @@ RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia && \
 
 # Notebook to run ComfyUI should be already available in workspace
 COPY ./run_comfy.ipynb ./run_comfy.ipynb
+COPY ./model_envs.py ./model_envs.py
+COPY ./startup_models.py ./startup_models.py
 
 # Expose ports for Jupyter Lab and ComfyUI
 EXPOSE 8888
@@ -70,5 +63,5 @@ EXPOSE 8188
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8888/api || exit 1
 
-# Run Jupyterlab
-CMD jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser --FileContentsManager.delete_to_trash=False --ServerApp.preferred_dir=/workspace --ServerApp.token=${JUPYTER_PASSWORD} --ServerApp.allow_origin=https://${RUNPOD_POD_ID}-8888.proxy.runpod.net
+# Run optional model downloads, then Jupyterlab
+CMD python -m startup_models && jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser --FileContentsManager.delete_to_trash=False --ServerApp.preferred_dir=/workspace --ServerApp.token=${JUPYTER_PASSWORD} --ServerApp.allow_origin=https://${RUNPOD_POD_ID}-8888.proxy.runpod.net

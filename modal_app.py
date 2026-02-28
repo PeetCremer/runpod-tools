@@ -9,6 +9,7 @@ def get_recommended_env_vars() -> dict[str, str]:
         "JUPYTER_PASSWORD",
         "HUGGINGFACE_TOKEN",
         "CIVITAI_TOKEN",
+        "COMFY_MODEL_ENVS",
     ]
     env_vars = {var: os.environ.get(var, "") for var in recommended_vars}
     if not env_vars["HUGGINGFACE_TOKEN"]:
@@ -59,6 +60,16 @@ def run_custom_container() -> None:
         env = os.environ.copy()
         if "RUNPOD_POD_ID" not in env:
             env["RUNPOD_POD_ID"] = "modal-local"
+
+        # Optionally pre-download models for configured environments
+        try:
+            subprocess.run(
+                ["python", "-m", "startup_models"],
+                env=env,
+                check=False,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"Model pre-download failed: {exc}")
 
         # Launch Jupyter Lab with the same arguments as in Dockerfile
         jupyter_cmd = [
