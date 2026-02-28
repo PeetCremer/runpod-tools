@@ -35,7 +35,9 @@ def get_recommended_env_vars() -> dict[str, str]:
 load_dotenv()
 env_vars = get_recommended_env_vars()
 custom_image = (
-    modal.Image.from_registry("jaezred/runpod-tools:release") # pyright: ignore[reportUnknownMemberType]
+    modal.Image.from_registry(  # pyright: ignore[reportUnknownMemberType]
+        "jaezred/runpod-tools@sha256:2b3a03b5ea023842c35edf699d0cd326261a68dd0a08ac8c3976bcdf4bf97717"
+    )
     .env(env_vars)
     .pip_install("python-dotenv==1.1.0") # Workaround for modal raising error at container startup
 )
