@@ -416,6 +416,12 @@ def _register_flux(builder: Aria2Builder) -> None:
 def _register_pony(builder: Aria2Builder) -> None:
     builder.file_path(Path("pony_aria2.txt"))
 
+    # WAI-illustrious-SDXL v16.0
+    builder.add_url(
+        "https://civitai.com/api/download/models/2514310?type=Model&format=SafeTensor&size=pruned&fp=fp16",
+        "checkpoints",
+    )
+
     builder.add_url(
         "https://civitai.com/api/download/models/324524?type=Model&format=SafeTensor&size=pruned&fp=fp16",
         "checkpoints",

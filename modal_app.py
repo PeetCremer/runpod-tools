@@ -4,12 +4,17 @@ import modal
 from dotenv import load_dotenv
 
 
+def _is_truthy(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def get_recommended_env_vars() -> dict[str, str]:
     recommended_vars = [
         "JUPYTER_PASSWORD",
         "HUGGINGFACE_TOKEN",
         "CIVITAI_TOKEN",
         "COMFY_MODEL_ENVS",
+        "COMFY_LOCAL_MODEL_ENVS_OVERRIDE",
     ]
     env_vars = {var: os.environ.get(var, "") for var in recommended_vars}
     if not env_vars["HUGGINGFACE_TOKEN"]:
@@ -34,10 +39,17 @@ def get_recommended_env_vars() -> dict[str, str]:
 
 load_dotenv()
 env_vars = get_recommended_env_vars()
-custom_image = (
-    modal.Image.from_registry(  # pyright: ignore[reportUnknownMemberType]
-        "jaezred/runpod-tools@sha256:2b3a03b5ea023842c35edf699d0cd326261a68dd0a08ac8c3976bcdf4bf97717"
+custom_image = modal.Image.from_registry(  # pyright: ignore[reportUnknownMemberType]
+    "jaezred/runpod-tools@sha256:2b3a03b5ea023842c35edf699d0cd326261a68dd0a08ac8c3976bcdf4bf97717"
+)
+if _is_truthy(env_vars.get("COMFY_LOCAL_MODEL_ENVS_OVERRIDE", "")):
+    # Optional override for rapid local model list iteration without pushing a new image.
+    custom_image = (
+        custom_image
+        .add_local_file("model_envs.py", "/workspace/model_envs.py")
     )
+custom_image = (
+    custom_image
     .env(env_vars)
     .pip_install("python-dotenv==1.1.0") # Workaround for modal raising error at container startup
 )

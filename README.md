@@ -102,6 +102,7 @@ You can also run the ComfyUI environment using [Modal](https://modal.com/), whic
   - `HUGGINGFACE_TOKEN`: (optional, for downloading models from Hugging Face)
   - `CIVITAI_TOKEN`: (optional, for downloading models from CivitAI)
   - `COMFY_MODEL_ENVS`: (optional, comma-separated list such as `flux,pony,wan` for automatic model downloads inside the Modal container)
+  - `COMFY_LOCAL_MODEL_ENVS_OVERRIDE`: (optional, set to `1`, `true`, `yes`, or `on` to inject local `model_envs.py` and `startup_models.py` into Modal for rapid custom model/LoRA iteration)
 
 ### How to run the Modal app
 
@@ -109,7 +110,7 @@ You can also run the ComfyUI environment using [Modal](https://modal.com/), whic
 modal run modal_app.py
 ```
 
-This will launch the Modal app using the `runpod-tools:release` Docker image from Docker Hub. When running, it will print tunnel URLs for both Jupyter Lab and ComfyUI, for example:
+This will launch the Modal app from a digest-pinned Docker image for reproducibility. When running, it will print tunnel URLs for both Jupyter Lab and ComfyUI, for example:
 
 ```
 Jupyter Lab tunnel URL: https://...modal.run
@@ -120,5 +121,7 @@ Tunnels are active. Your services should be accessible if running in the contain
 Open the Jupyter Lab tunnel URL in your browser and log in with your password. The working directory includes the `run_comfy.ipynb` notebook, which you can use to start ComfyUI directly within the Modal environment.
 
 If you set `COMFY_MODEL_ENVS` before running the app, the same automatic model download step described above will run inside the Modal container as well.
+
+By default, Modal uses only the pinned registry image contents. If you want to iterate on custom per-configuration model lists without pushing a new image, set `COMFY_LOCAL_MODEL_ENVS_OVERRIDE=1` to inject your local `model_envs.py` and `startup_models.py` at launch time.
 
 **Note:** Always set a strong password for `JUPYTER_PASSWORD` to prevent unauthorized access to your Jupyter Lab server.
