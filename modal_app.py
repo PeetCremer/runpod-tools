@@ -37,6 +37,7 @@ def get_recommended_env_vars() -> dict[str, str]:
 
     return env_vars
 
+
 load_dotenv()
 env_vars = get_recommended_env_vars()
 custom_image = modal.Image.from_registry(  # pyright: ignore[reportUnknownMemberType]
@@ -44,28 +45,27 @@ custom_image = modal.Image.from_registry(  # pyright: ignore[reportUnknownMember
 )
 if _is_truthy(env_vars.get("COMFY_LOCAL_MODEL_ENVS_OVERRIDE", "")):
     # Optional override for rapid local model list iteration without pushing a new image.
-    custom_image = (
-        custom_image
-        .add_local_file("model_envs.py", "/workspace/model_envs.py")
-    )
+    custom_image = custom_image.add_local_file("model_envs.py", "/workspace/model_envs.py")
 custom_image = (
-    custom_image
-    .env(env_vars)
-    .pip_install("python-dotenv==1.1.0") # Workaround for modal raising error at container startup
+    custom_image.env(env_vars).pip_install(
+        "python-dotenv==1.1.0"
+    )  # Workaround for modal raising error at container startup
 )
 app = modal.App()
 
 
-@app.function(image=custom_image, gpu="L40S", timeout=8*60*60) # 8 hours timeout
+@app.function(image=custom_image, gpu="L40S", timeout=8 * 60 * 60)  # 8 hours timeout
 def run_custom_container() -> None:
     import os
     import subprocess
+
     print("Running inside custom Docker container!")
 
     # Forward Jupyter Lab and ComfyUI ports
     with modal.forward(8888) as jupyter_tunnel, modal.forward(8188) as comfyui_tunnel:
         import os
         import subprocess
+
         print(f"Jupyter Lab tunnel URL: {jupyter_tunnel.url}")
         print(f"ComfyUI tunnel URL: {comfyui_tunnel.url}")
         print("Tunnels are active. Your services should be accessible if running in the container.")
@@ -87,7 +87,8 @@ def run_custom_container() -> None:
 
         # Launch Jupyter Lab with the same arguments as in Dockerfile
         jupyter_cmd = [
-            "jupyter", "lab",
+            "jupyter",
+            "lab",
             "--ip=0.0.0.0",
             "--port=8888",
             "--allow-root",

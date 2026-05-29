@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,18 +51,12 @@ class Aria2Builder:
         headers: dict[str, str] = {}
         if "huggingface.co" in parsed_url.netloc:
             if not self._huggingface_token:
-                msg = (
-                    "huggingface_token is not set and not specified in "
-                    "HUGGINGFACE_TOKEN environment variable."
-                )
+                msg = "huggingface_token is not set and not specified in HUGGINGFACE_TOKEN environment variable."
                 raise ValueError(msg)
             headers["Authorization"] = f"Bearer {self._huggingface_token}"
         elif "civitai.com" in parsed_url.netloc:
             if not self._civitai_token:
-                msg = (
-                    "civitai_token is not set and not specified in "
-                    "CIVITAI_TOKEN environment variable."
-                )
+                msg = "civitai_token is not set and not specified in CIVITAI_TOKEN environment variable."
                 raise ValueError(msg)
             url = f"{url}&token={self._civitai_token}"
 
@@ -68,10 +64,7 @@ class Aria2Builder:
         if "huggingface.co" in parsed_url.netloc or "github.com" in parsed_url.netloc:
             out = os.path.basename(parsed_url.path)
             if not out:
-                msg = (
-                    "Could not determine filename from URL for repository that "
-                    "requires it to be set explicitly."
-                )
+                msg = "Could not determine filename from URL for repository that requires it to be set explicitly."
                 raise ValueError(msg)
 
         url_entry = UrlEntry(url=url, subdir=subdir, out=out, headers=headers)
@@ -101,9 +94,7 @@ class Aria2Builder:
                 if url_entry.out:
                     options["out"] = url_entry.out
                 if url_entry.headers:
-                    header_value = "\n".join(
-                        f"{key}: {value}" for key, value in url_entry.headers.items()
-                    )
+                    header_value = "\n".join(f"{key}: {value}" for key, value in url_entry.headers.items())
                     options["header"] = header_value
 
                 file.write(f"{url_entry.url}\n")
@@ -115,6 +106,61 @@ class Aria2Builder:
         result = self._file_path
         self.reset()
         return result
+
+
+def _parse_aria2_input(input_file: Path) -> list[tuple[str, dict[str, str]]]:
+    """Parse aria2 input file into (url, options) entries."""
+    entries: list[tuple[str, dict[str, str]]] = []
+    current_url: str | None = None
+    current_options: dict[str, str] = {}
+
+    for line in input_file.read_text(encoding="utf-8").splitlines():
+        if line.startswith(("\t", " ")):
+            # Option line: key=value
+            opt = line.strip()
+            if "=" in opt:
+                key, _, value = opt.partition("=")
+                current_options[key.strip()] = value.strip()
+        else:
+            # URL line
+            if current_url is not None:
+                entries.append((current_url, current_options))
+                current_options = {}
+            current_url = line.strip()
+
+    if current_url is not None:
+        entries.append((current_url, current_options))
+
+    return entries
+
+
+def _format_aria2_entry(url: str, options: dict[str, str]) -> str:
+    """Format a single entry for aria2 input file."""
+    boilerplate = {
+        "split": "16",
+        "max-connection-per-server": "16",
+        "min-split-size": "1M",
+        "allow-overwrite": "true",
+        "continue": "true",
+        "auto-file-renaming": "false",
+    }
+    merged = {**boilerplate, **options}
+    opts = "\n".join(f"\t{k}={v}" for k, v in merged.items())
+    return f"{url}\n{opts}"
+
+
+def _download_civitai_with_curl(url: str, target_dir: Path, out_name: str | None) -> None:
+    """Download a Civitai URL using curl (aria2c gets 403 from B2 CDN)."""
+    target_dir = target_dir.resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    if out_name:
+        out_path = target_dir / out_name
+        cmd = ["curl", "-fsSL", "-o", str(out_path), url]
+    else:
+        cmd = ["curl", "-fsSL", "-O", "-J", url]
+    result = subprocess.run(cmd, cwd=target_dir if not out_name else None)
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, cmd, output=None, stderr=None)
 
 
 def _run_aria2c(input_file: Path) -> None:
@@ -135,6 +181,53 @@ def _run_aria2c(input_file: Path) -> None:
         )
     except subprocess.CalledProcessError as exc:
         print(f"aria2c failed for {input_file}: {exc}", file=sys.stderr)
+
+
+def _run_downloads(input_file: Path) -> None:
+    """Run downloads, using curl for Civitai (aria2c gets 403) and aria2c for others."""
+    entries = _parse_aria2_input(input_file)
+    civitai_entries: list[tuple[str, dict[str, str]]] = []
+    aria2_entries: list[tuple[str, dict[str, str]]] = []
+
+    for url, opts in entries:
+        if "civitai.com" in url:
+            civitai_entries.append((url, opts))
+        else:
+            aria2_entries.append((url, opts))
+
+    # Download Civitai URLs with curl (B2 CDN blocks aria2c)
+    curl_exe = shutil.which("curl")
+    for url, opts in civitai_entries:
+        dir_val = opts.get("dir", ".")
+        out_val = opts.get("out")
+        target_dir = Path(dir_val)
+        try:
+            if curl_exe:
+                _download_civitai_with_curl(url, target_dir, out_val)
+            else:
+                print(
+                    "curl not found on PATH; skipping Civitai download. "
+                    "Install curl or use aria2c (may get 403 from Civitai).",
+                    file=sys.stderr,
+                )
+        except subprocess.CalledProcessError as exc:
+            print(f"Civitai download failed: {exc}", file=sys.stderr)
+
+    # Download non-Civitai URLs with aria2c
+    if aria2_entries:
+        content = "\n".join(_format_aria2_entry(u, o) for u, o in aria2_entries)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".txt",
+            delete=False,
+            encoding="utf-8",
+        ) as tmp:
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+        try:
+            _run_aria2c(tmp_path)
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
 
 def _register_upscalers(builder: Aria2Builder) -> None:
@@ -842,5 +935,4 @@ def download_models_for_envs(
             )
             continue
 
-        _run_aria2c(input_file)
-
+        _run_downloads(input_file)

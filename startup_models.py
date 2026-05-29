@@ -22,8 +22,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     envs = _parse_env_var(raw_value)
     if not envs:
         print(
-            "COMFY_MODEL_ENVS is empty after parsing; "
-            "skipping automatic model downloads.",
+            "COMFY_MODEL_ENVS is empty after parsing; skipping automatic model downloads.",
         )
         return 0
 
@@ -40,4 +39,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
