@@ -54,7 +54,7 @@ class Aria2Builder:
                 msg = "huggingface_token is not set and not specified in HUGGINGFACE_TOKEN environment variable."
                 raise ValueError(msg)
             headers["Authorization"] = f"Bearer {self._huggingface_token}"
-        elif "civitai.com" in parsed_url.netloc:
+        elif "civitai.com" in parsed_url.netloc or "civitai.red" in parsed_url.netloc:
             if not self._civitai_token:
                 msg = "civitai_token is not set and not specified in CIVITAI_TOKEN environment variable."
                 raise ValueError(msg)
@@ -190,7 +190,7 @@ def _run_downloads(input_file: Path) -> None:
     aria2_entries: list[tuple[str, dict[str, str]]] = []
 
     for url, opts in entries:
-        if "civitai.com" in url:
+        if "civitai.com" in url or "civitai.red" in url:
             civitai_entries.append((url, opts))
         else:
             aria2_entries.append((url, opts))
@@ -852,6 +852,113 @@ def _register_mmaudio(builder: Aria2Builder) -> None:
         "mmaudio",
     )
 
+def _register_ltx_v3_2(builder: Aria2Builder) -> None:
+    builder.file_path(Path("ltx_v3_2_aria2.txt"))
+    # Eros
+    builder.add_url(
+        "https://civitai.red/api/download/models/2892069?type=Model&format=SafeTensor&size=full&fp=fp8",
+        "diffusion_models",
+    )
+
+    # Distilled model
+    builder.add_url(
+        "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/diffusion_models/ltx-2.3-22b-distilled_transformer_only_fp8_input_scaled_v3.safetensors?download=true",
+        "diffusion_models",
+    )
+
+    # Text encoder
+    builder.add_url(
+        "https://huggingface.co/GitMylo/LTX-2-comfy_gemma_fp8_e4m3fn/resolve/main/gemma_3_12B_it_fp8_e4m3fn.safetensors?download=true",
+        "text_encoders",
+    )
+
+    # Text projection
+    builder.add_url(
+        "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/text_encoders/ltx-2.3_text_projection_bf16.safetensors?download=true",
+        "clip",
+    )
+
+    # Video VAE
+    builder.add_url(
+        "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_video_vae_bf16.safetensors?download=true",
+        "vae",
+    )
+    # Audio VAE
+    builder.add_url(
+        "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_audio_vae_bf16.safetensors?download=true",
+        "vae",
+    )
+    # Preview VAE
+    builder.add_url(
+        "https://github.com/madebyollin/taehv/raw/main/safetensors/taeltx2_3.safetensors",
+        "vae",
+    )
+    # Latent upscale
+    builder.add_url(
+        "https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors?download=true",
+        "latent_upscale_models",
+    )
+    # Upscale model
+    builder.add_url(
+        "https://civitai.red/api/download/models/164677?type=Model&format=SafeTensor",
+        "upscale_models",
+    )
+    # Distilled Loras
+    builder.add_url(
+        "https://huggingface.co/TenStrip/LTX2.3_Distilled_Lora_1.1_Experiments/resolve/main/ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors?download=true",
+        "loras",
+    )
+    builder.add_url(
+        "https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-22b-distilled-lora-384-1.1.safetensors?download=true",
+        "loras",
+    )
+
+    # Loras
+    # https://civitai.red/models/1811313/dr34ml4y-all-in-one-nsfw-wanltx2?modelVersionId=2950842
+    builder.add_url(
+        "https://civitai.red/api/download/models/2950842?fileId=2830123",
+        "loras",
+    )
+    # https://civitai.red/models/2621242/epic-cumshots-ltx-23?modelVersionId=2946870
+    builder.add_url(
+        "https://civitai.red/api/download/models/2946870?fileId=2826136",
+        "loras",
+    )
+    # https://civitai.red/models/1648982/nsfw-posing-nude?modelVersionId=2949966
+    builder.add_url(
+        "https://civitai.red/api/download/models/2949966?fileId=2829314",
+        "loras",
+    )
+    # https://civitai.red/models/2509189/synth-pussy-ltx-23?modelVersionId=2820451
+    builder.add_url(
+        "https://civitai.red/api/download/models/2820451?fileId=2706435",
+        "loras",
+    )
+    # https://civitai.red/models/2497207/ltx-23-i2v-t2v-video-reasoning-lora-vbvr?modelVersionId=2848299
+    builder.add_url(
+        "https://civitai.red/api/download/models/2848299?fileId=2734400",
+        "loras",
+    )
+    # https://civitai.red/models/2535622/ltx-23-enhancers?modelVersionId=2849716
+    builder.add_url(
+        "https://civitai.red/api/download/models/2849716?fileId=2735885",
+        "loras",
+    )
+    # https://civitai.red/models/2535622/ltx-23-enhancers?modelVersionId=2849706
+    builder.add_url(
+        "https://civitai.red/api/download/models/2849706?fileId=2735868",
+        "loras",
+    )
+    # https://civitai.red/models/2531473/facials-and-cum-in-mouth?modelVersionId=2845053
+    builder.add_url(
+        "https://civitai.red/api/download/models/2845053?fileId=2731208",
+        "loras",
+    )
+    # https://civitai.red/models/2580360/sexgod-fingeringdildo-ltx-23?modelVersionId=2898896
+    builder.add_url(
+        "https://civitai.red/api/download/models/2898896?fileId=2776856",
+        "loras",
+    )
 
 _ENV_REGISTRARS: dict[str, Callable[[Aria2Builder], None]] = {
     "upscalers": _register_upscalers,
@@ -863,6 +970,7 @@ _ENV_REGISTRARS: dict[str, Callable[[Aria2Builder], None]] = {
     "qwen_image": _register_qwen_image,
     "wan": _register_wan,
     "mmaudio": _register_mmaudio,
+    "ltx_v3_2": _register_ltx_v3_2,
 }
 
 _ENV_ALIASES: dict[str, str] = {
@@ -879,6 +987,7 @@ _ENV_ALIASES: dict[str, str] = {
     "qwen-image": "qwen_image",
     "qwen_image": "qwen_image",
     "mmaudio": "mmaudio",
+    "ltx_v3_2": "ltx_v3_2",
 }
 
 
