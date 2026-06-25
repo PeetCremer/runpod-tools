@@ -41,7 +41,7 @@ def get_recommended_env_vars() -> dict[str, str]:
 load_dotenv()
 env_vars = get_recommended_env_vars()
 custom_image = modal.Image.from_registry(  # pyright: ignore[reportUnknownMemberType]
-    "jaezred/runpod-tools@sha256:1012a526771fa39b556462d2142a0041b8b25352a13a043ac3110def38cb955f"
+    "jaezred/runpod-tools@sha256:69271fbf117eed2e7fee343a81d2301f3b68ccc3d17814807e631657ad9bb6c6"
 )
 if _is_truthy(env_vars.get("COMFY_LOCAL_MODEL_ENVS_OVERRIDE", "")):
     # Optional override for rapid local model list iteration without pushing a new image.
