@@ -1,0 +1,37 @@
+{
+    "custom_nodes": {
+        "https://github.com/ltdrdata/ComfyUI-Impact-Pack": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/rgthree/rgthree-comfy": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/pythongosssss/ComfyUI-Custom-Scripts": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/kijai/ComfyUI-KJNodes": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite": {
+            "state": "not-installed",
+            "hash": "-"
+        }
+    },
+    "unknown_nodes": [
+        "4f745772-8508-48ea-ae3e-fc36d14c7698",
+        "13195b63-2afe-46e9-98a9-ff09a792f4b1",
+        "d5fb6ea9-b9a0-4ed6-b262-9e99b734de2b",
+        "MarkdownNote",
+        "08a79e82-c299-4c2c-a575-f4080fa1bbe5",
+        "0356d37f-c054-4041-afd3-cb58a47eecaa",
+        "e662aada-407c-4a82-921a-37095f52bdc5",
+        "01816ba9-e601-4b7a-86aa-c51006403ed3",
+        "e9d8e66c-8892-4747-b8a6-68e6103ea6b7",
+        "a7352677-39ac-4fb4-89ce-ab7af347ba2a",
+        "a8017407-4b31-4591-a178-d709af03e6e1"
+    ]
+}

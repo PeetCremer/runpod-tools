@@ -1,0 +1,47 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project goal
+look into [README.md](mdc:README.md) to get an overview of the overall goal of the project.
+
+## Package manager
+The project uses package manager uv
+
+## Coding style 
+We use exclusively python. 
+We want linted, and strongly typed python.
+- We use ruff for linting and formatting
+- We use pyright for typechecking
+
+## Package manager
+
+- Add a package:
+  uv add <package>
+
+- Remove a package:
+  uv remove <package>
+
+- Sync environment (install all dependencies):
+  uv sync
+
+- Run a script or command in the project environment:
+  uv run <command>
+
+## Linting, fixing, and typechecking
+
+- Lint the codebase:
+  uv run ruff check .
+
+- Auto-fix lint issues:
+  uv run ruff check . --fix
+
+- Format the codebase:
+  uv run ruff format .
+
+- Typecheck the codebase:
+  uv run pyright
+
+
+

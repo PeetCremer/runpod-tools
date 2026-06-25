@@ -1,4 +1,7 @@
-.venv
-pw
-ComfyUI
-workflows
+/.venv
+/ComfyUI
+/workflows
+/.DS_Store
+__pycache__/
+.env
+outputs/

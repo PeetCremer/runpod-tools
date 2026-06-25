@@ -1,0 +1,1089 @@
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.parse
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Iterable, Mapping
+
+
+@dataclass
+class UrlEntry:
+    url: str
+    subdir: str
+    out: str | None
+    headers: Mapping[str, str]
+
+
+class Aria2Builder:
+    """Helper for building aria2c input files targeting the ComfyUI models directory."""
+
+    def __init__(self, comfyui_models_dir: Path | None = None) -> None:
+        self._default_models_dir = comfyui_models_dir or Path("ComfyUI") / "models"
+        self.reset()
+
+    def reset(self) -> None:
+        self._comfyui_models_dir: Path = self._default_models_dir
+        self._huggingface_token = os.environ.get("HUGGINGFACE_TOKEN")
+        self._civitai_token = os.environ.get("CIVITAI_TOKEN")
+        self._file_path: Path = Path("aria2_input_file.txt")
+        self._url_entries: list[UrlEntry] = []
+
+    def comfyui_models_dir(self, comfyui_models_dir: Path) -> None:
+        self._comfyui_models_dir = comfyui_models_dir
+
+    def huggingface_token(self, huggingface_token: str) -> None:
+        self._huggingface_token = huggingface_token
+
+    def civitai_token(self, civitai_token: str) -> None:
+        self._civitai_token = civitai_token
+
+    def file_path(self, file_path: Path) -> None:
+        self._file_path = file_path
+
+    def add_url(self, url: str, subdir: str) -> None:
+        parsed_url = urllib.parse.urlparse(url)
+
+        headers: dict[str, str] = {}
+        if "huggingface.co" in parsed_url.netloc:
+            if not self._huggingface_token:
+                msg = "huggingface_token is not set and not specified in HUGGINGFACE_TOKEN environment variable."
+                raise ValueError(msg)
+            headers["Authorization"] = f"Bearer {self._huggingface_token}"
+        elif "civitai.com" in parsed_url.netloc or "civitai.red" in parsed_url.netloc:
+            if not self._civitai_token:
+                msg = "civitai_token is not set and not specified in CIVITAI_TOKEN environment variable."
+                raise ValueError(msg)
+            url = f"{url}&token={self._civitai_token}"
+
+        out: str | None = None
+        if "huggingface.co" in parsed_url.netloc or "github.com" in parsed_url.netloc:
+            out = os.path.basename(parsed_url.path)
+            if not out:
+                msg = "Could not determine filename from URL for repository that requires it to be set explicitly."
+                raise ValueError(msg)
+
+        url_entry = UrlEntry(url=url, subdir=subdir, out=out, headers=headers)
+        self._url_entries.append(url_entry)
+
+    def build(self) -> Path:
+        """Write the aria2 input file and reset internal state."""
+
+        boilerplate_options = {
+            "split": "16",
+            "max-connection-per-server": "16",
+            "min-split-size": "1M",
+            "allow-overwrite": "true",
+            "continue": "true",
+            "auto-file-renaming": "false",
+        }
+
+        for entry in self._url_entries:
+            target_dir = self._comfyui_models_dir / entry.subdir
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+        with self._file_path.open("w", encoding="utf-8") as file:
+            for url_entry in self._url_entries:
+                options: dict[str, str] = {
+                    "dir": str(self._comfyui_models_dir / url_entry.subdir),
+                }
+                if url_entry.out:
+                    options["out"] = url_entry.out
+                if url_entry.headers:
+                    header_value = "\n".join(f"{key}: {value}" for key, value in url_entry.headers.items())
+                    options["header"] = header_value
+
+                file.write(f"{url_entry.url}\n")
+                for option, value in boilerplate_options.items():
+                    file.write(f"\t{option}={value}\n")
+                for option, value in options.items():
+                    file.write(f"\t{option}={value}\n")
+
+        result = self._file_path
+        self.reset()
+        return result
+
+
+def _parse_aria2_input(input_file: Path) -> list[tuple[str, dict[str, str]]]:
+    """Parse aria2 input file into (url, options) entries."""
+    entries: list[tuple[str, dict[str, str]]] = []
+    current_url: str | None = None
+    current_options: dict[str, str] = {}
+
+    for line in input_file.read_text(encoding="utf-8").splitlines():
+        if line.startswith(("\t", " ")):
+            # Option line: key=value
+            opt = line.strip()
+            if "=" in opt:
+                key, _, value = opt.partition("=")
+                current_options[key.strip()] = value.strip()
+        else:
+            # URL line
+            if current_url is not None:
+                entries.append((current_url, current_options))
+                current_options = {}
+            current_url = line.strip()
+
+    if current_url is not None:
+        entries.append((current_url, current_options))
+
+    return entries
+
+
+def _format_aria2_entry(url: str, options: dict[str, str]) -> str:
+    """Format a single entry for aria2 input file."""
+    boilerplate = {
+        "split": "16",
+        "max-connection-per-server": "16",
+        "min-split-size": "1M",
+        "allow-overwrite": "true",
+        "continue": "true",
+        "auto-file-renaming": "false",
+    }
+    merged = {**boilerplate, **options}
+    opts = "\n".join(f"\t{k}={v}" for k, v in merged.items())
+    return f"{url}\n{opts}"
+
+
+def _download_civitai_with_curl(url: str, target_dir: Path, out_name: str | None) -> None:
+    """Download a Civitai URL using curl (aria2c gets 403 from B2 CDN)."""
+    target_dir = target_dir.resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    if out_name:
+        out_path = target_dir / out_name
+        cmd = ["curl", "-fsSL", "-o", str(out_path), url]
+    else:
+        cmd = ["curl", "-fsSL", "-O", "-J", url]
+    result = subprocess.run(cmd, cwd=target_dir if not out_name else None)
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, cmd, output=None, stderr=None)
+
+
+def _run_aria2c(input_file: Path) -> None:
+    try:
+        subprocess.run(
+            [
+                "aria2c",
+                "--console-log-level=error",
+                "-i",
+                str(input_file),
+            ],
+            check=True,
+        )
+    except FileNotFoundError:
+        print(
+            "aria2c executable not found on PATH; skipping automatic model downloads.",
+            file=sys.stderr,
+        )
+    except subprocess.CalledProcessError as exc:
+        print(f"aria2c failed for {input_file}: {exc}", file=sys.stderr)
+
+
+def _run_downloads(input_file: Path) -> None:
+    """Run downloads, using curl for Civitai (aria2c gets 403) and aria2c for others."""
+    entries = _parse_aria2_input(input_file)
+    civitai_entries: list[tuple[str, dict[str, str]]] = []
+    aria2_entries: list[tuple[str, dict[str, str]]] = []
+
+    for url, opts in entries:
+        if "civitai.com" in url or "civitai.red" in url:
+            civitai_entries.append((url, opts))
+        else:
+            aria2_entries.append((url, opts))
+
+    # Download Civitai URLs with curl (B2 CDN blocks aria2c)
+    curl_exe = shutil.which("curl")
+    for url, opts in civitai_entries:
+        dir_val = opts.get("dir", ".")
+        out_val = opts.get("out")
+        target_dir = Path(dir_val)
+        try:
+            if curl_exe:
+                _download_civitai_with_curl(url, target_dir, out_val)
+            else:
+                print(
+                    "curl not found on PATH; skipping Civitai download. "
+                    "Install curl or use aria2c (may get 403 from Civitai).",
+                    file=sys.stderr,
+                )
+        except subprocess.CalledProcessError as exc:
+            print(f"Civitai download failed: {exc}", file=sys.stderr)
+
+    # Download non-Civitai URLs with aria2c
+    if aria2_entries:
+        content = "\n".join(_format_aria2_entry(u, o) for u, o in aria2_entries)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".txt",
+            delete=False,
+            encoding="utf-8",
+        ) as tmp:
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+        try:
+            _run_aria2c(tmp_path)
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+
+def _register_upscalers(builder: Aria2Builder) -> None:
+    builder.file_path(Path("upscalers_aria2.txt"))
+    builder.add_url(
+        "https://civitai.com/api/download/models/125843?type=Model&format=PickleTensor",
+        "upscale_models",
+    )
+    builder.add_url(
+        "https://github.com/Phhofm/models/releases/download/2xNomosUni_span_multijpg_ldl/2xNomosUni_span_multijpg_ldl.safetensors",  # noqa: E501
+        "upscale_models",
+    )
+    builder.add_url(
+        "https://github.com/Phhofm/models/releases/download/4xNomos8k_atd_jpg/4xNomos8k_atd_jpg.safetensors",  # noqa: E501
+        "upscale_models",
+    )
+
+
+def _register_hunyuan(builder: Aria2Builder) -> None:
+    builder.file_path(Path("hunyuan_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged/resolve/main/split_files/vae/hunyuan_video_vae_bf16.safetensors",  # noqa: E501
+        "vae",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1356617?type=Model&format=SafeTensor&size=pruned&fp=fp8",  # noqa: E501
+        "diffusion_models",
+    )
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged/resolve/main/split_files/text_encoders/llava_llama3_fp8_scaled.safetensors",  # noqa: E501
+        "text_encoders",
+    )
+    builder.add_url(
+        "https://huggingface.co/zer0int/LongCLIP-SAE-ViT-L-14/resolve/main/Long-ViT-L-14-GmP-SAE-TE-only.safetensors",  # noqa: E501
+        "text_encoders",
+    )
+    builder.add_url(
+        "https://huggingface.co/Kijai/HunyuanVideo_comfy/resolve/main/hunyuan_video_FastVideo_720_fp8_e4m3fn.safetensors",  # noqa: E501
+        "diffusion_models",
+    )
+
+    # LoRAs
+    builder.add_url(
+        "https://huggingface.co/Kijai/HunyuanVideo_comfy/resolve/main/hyvideo_FastVideo_LoRA-fp8.safetensors",  # noqa: E501
+        "loras",
+    )
+    builder.add_url(
+        "https://huggingface.co/leapfusion-image2vid-test/image2vid-960x544/resolve/main/img2vid544p.safetensors",  # noqa: E501
+        "loras",
+    )
+
+    builder.add_url(
+        "https://civitai.com/api/download/models/1259737?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1261435?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1270232?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1231959?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1299285?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1385168?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1289279?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1239432?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1187802?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1419218?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1435515?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1291865?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1410507?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1188578?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1367561?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1389959?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1501799?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1497241?type=Model&format=SafeTensor",
+        "loras",
+    )
+
+
+def _register_flux(builder: Aria2Builder) -> None:
+    builder.file_path(Path("flux_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/city96/FLUX.1-dev-gguf/resolve/main/flux1-dev-Q8_0.gguf",
+        "unet",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2274229?type=Model&format=GGUF&size=pruned&fp=fp16",
+        "unet",
+    )
+
+    builder.add_url(
+        "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safetensors",
+        "vae",
+    )
+
+    builder.add_url(
+        "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors",
+        "clip",
+    )
+    builder.add_url(
+        "https://huggingface.co/zer0int/CLIP-GmP-ViT-L-14/resolve/main/ViT-L-14-TEXT-detail-improved-hiT-GmP-TE-only-HF.safetensors",  # noqa: E501
+        "clip",
+    )
+    builder.add_url(
+        "https://huggingface.co/zer0int/CLIP-GmP-ViT-L-14/resolve/main/ViT-L-14-BEST-smooth-GmP-TE-only-HF-format.safetensors",  # noqa: E501
+        "clip",
+    )
+    builder.add_url(
+        "https://huggingface.co/zer0int/CLIP-Registers-Gated_MLP-ViT-L-14/resolve/main/ViT-L-14-REG-TE-only-balanced-HF-format-ckpt12.safetensors",  # noqa: E501
+        "clip",
+    )
+    builder.add_url(
+        "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors",
+        "clip",
+    )
+
+    builder.add_url(
+        "https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-FLUX.1-dev-8steps-lora.safetensors",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/736227?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1047380?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1500495?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/746602?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/931225?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1301668?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/917520?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1321842?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1169319?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1278213?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1093128?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1867123?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1867163?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1865751?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1871038?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1064546?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1069819?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1062916?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1068253?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1066495?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/890482?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1524366?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/928767?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2009929?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1892397?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/1918677?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/755852?type=Model&format=SafeTensor",
+        "loras",
+    )
+
+
+def _register_pony(builder: Aria2Builder) -> None:
+    builder.file_path(Path("pony_aria2.txt"))
+
+    # WAI-illustrious-SDXL v16.0
+    builder.add_url(
+        "https://civitai.com/api/download/models/2514310?type=Model&format=SafeTensor&size=pruned&fp=fp16",
+        "checkpoints",
+    )
+
+    builder.add_url(
+        "https://civitai.com/api/download/models/324524?type=Model&format=SafeTensor&size=pruned&fp=fp16",
+        "checkpoints",
+    )
+
+    builder.add_url(
+        "https://huggingface.co/wangfuyun/PCM_Weights/resolve/main/sdxl/pcm_sdxl_normalcfg_8step_converted.safetensors",  # noqa: E501
+        "loras",
+    )
+    builder.add_url(
+        "https://huggingface.co/wangfuyun/PCM_Weights/resolve/main/sdxl/pcm_sdxl_normalcfg_16step_converted.safetensors",  # noqa: E501
+        "loras",
+    )
+
+    builder.add_url(
+        "https://civitai.com/api/download/models/418782?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/450029?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/418769?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/398292?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/372898?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/363388?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/341131?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/333607?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/333590?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/333587?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/329446?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/323081?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/302106?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/300686?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/298238?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/298005?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/297988?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/369272?type=Model&format=SafeTensor",
+        "loras",
+    )
+
+    builder.add_url(
+        "https://civitai.com/api/download/models/380277?type=Model&format=PickleTensor",
+        "embeddings",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/380277?type=Negative&format=Other",
+        "embeddings",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/482268?type=Model&format=PickleTensor",
+        "embeddings",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/482268?type=Negative&format=Other",
+        "embeddings",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/720175?type=Model&format=SafeTensor",
+        "embeddings",
+    )
+
+
+def _register_zimage(builder: Aria2Builder) -> None:
+    builder.file_path(Path("zimage_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors?download=true",  # noqa: E501
+        "diffusion_models",
+    )
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors",
+        "vae",
+    )
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors",  # noqa: E501
+        "text_encoders",
+    )
+
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/loras/z_image_turbo_distill_patch_lora_bf16.safetensors",  # noqa: E501
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2474435?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2581135?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2471161?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2524532?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2478366?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2524277?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2447989?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2488034?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2536215?type=Model&format=SafeTensor",
+        "loras",
+    )
+
+
+def _register_chroma(builder: Aria2Builder) -> None:
+    builder.file_path(Path("chroma_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/lodestones/Chroma/resolve/main/chroma-unlocked-v50.safetensors",
+        "unet",
+    )
+    builder.add_url(
+        "https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safetensors",
+        "vae",
+    )
+    builder.add_url(
+        "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors",
+        "clip",
+    )
+    builder.add_url(
+        "https://huggingface.co/silveroxides/Chroma-LoRA-Experiments/resolve/main/chroma-unlocked-rescaled_cfg_LoRA-rank_16-fp32.safetensors",  # noqa: E501
+        "loras",
+    )
+
+
+def _register_qwen_image(builder: Aria2Builder) -> None:
+    builder.file_path(Path("qwen_image_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_fp8_e4m3fn.safetensors",  # noqa: E501
+        "diffusion_models",
+    )
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors",  # noqa: E501
+        "vae",
+    )
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",  # noqa: E501
+        "text_encoders",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2195978?type=Model&format=SafeTensor",
+        "loras",
+    )
+
+
+def _register_wan(builder: Aria2Builder) -> None:
+    builder.file_path(Path("wan_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-HIGH_fp8_e4m3fn_scaled_KJ.safetensors",  # noqa: E501
+        "diffusion_models",
+    )
+    builder.add_url(
+        "https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/I2V/Wan2_2-I2V-A14B-LOW_fp8_e4m3fn_scaled_KJ.safetensors",  # noqa: E501
+        "diffusion_models",
+    )
+
+    builder.add_url(
+        "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/umt5-xxl-enc-bf16.safetensors",
+        "clip",
+    )
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors",  # noqa: E501
+        "clip_vision",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2039365?type=Model&format=SafeTensor&size=full&fp=fp16",
+        "clip_vision",
+    )
+    builder.add_url(
+        "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors",  # noqa: E501
+        "vae",
+    )
+
+    builder.add_url(
+        "https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2-I2V-A14B-4steps-lora-rank64-Seko-V1/high_noise_model.safetensors",  # noqa: E501
+        "loras",
+    )
+    builder.add_url(
+        "https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2-I2V-A14B-4steps-lora-rank64-Seko-V1/low_noise_model.safetensors",  # noqa: E501
+        "loras",
+    )
+
+    builder.add_url(
+        "https://civitai.com/api/download/models/2209275?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2209481?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2230125?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2230133?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2098405?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2098396?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2235299?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2235288?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2176505?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2190476?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2116008?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2116027?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2152516?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2152583?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2156392?type=Model&format=SafeTensor",
+        "loras",
+    )
+    builder.add_url(
+        "https://civitai.com/api/download/models/2156435?type=Model&format=SafeTensor",
+        "loras",
+    )
+
+
+def _register_mmaudio(builder: Aria2Builder) -> None:
+    builder.file_path(Path("mmaudio_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/Kijai/MMAudio_safetensors/resolve/main/apple_DFN5B-CLIP-ViT-H-14-384_fp16.safetensors",  # noqa: E501
+        "mmaudio",
+    )
+    builder.add_url(
+        "https://huggingface.co/Kijai/MMAudio_safetensors/resolve/main/mmaudio_large_44k_v2_fp16.safetensors",  # noqa: E501
+        "mmaudio",
+    )
+    builder.add_url(
+        "https://huggingface.co/phazei/NSFW_MMaudio/resolve/main/mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors",  # noqa: E501
+        "mmaudio",
+    )
+    builder.add_url(
+        "https://huggingface.co/Kijai/MMAudio_safetensors/resolve/main/mmaudio_synchformer_fp16.safetensors",  # noqa: E501
+        "mmaudio",
+    )
+    builder.add_url(
+        "https://huggingface.co/Kijai/MMAudio_safetensors/resolve/main/mmaudio_vae_44k_fp16.safetensors",  # noqa: E501
+        "mmaudio",
+    )
+
+def _register_anima(builder: Aria2Builder) -> None:
+    builder.file_path(Path("anima_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/diffusion_models/anima-base-v1.0.safetensors",  # noqa: E501
+        "diffusion_models",
+    )
+    builder.add_url(
+        "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors",  # noqa: E501
+        "text_encoders",
+    )
+    builder.add_url(
+        "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors",  # noqa: E501
+        "vae",
+    )
+
+    # https://civitai.com/models/2560840/anima-turbo-lora
+    builder.add_url(
+        "https://civitai.com/api/download/models/2979642?fileId=2859181",
+        "loras",
+    )
+
+    # https://civitai.red/models/2544636/wai-anima?modelVersionId=2983680
+    builder.add_url(
+        "https://civitai.red/api/download/models/2983680?fileId=2863158",
+        "diffusion_models",
+    )
+
+    # https://civitai.red/models/599757/velvets-mythic-fantasy-styles-or-flux-pony-illustrious-zit-anima?modelVersionId=2918615
+    builder.add_url(
+        "https://civitai.red/api/download/models/2918615?fileId=2796968",
+        "loras",
+    )
+    # https://civitai.red/models/599757/velvets-mythic-fantasy-styles-or-flux-pony-illustrious-zit-anima?modelVersionId=3016131
+    builder.add_url(
+        "https://civitai.red/api/download/models/3016131?fileId=2895067",
+        "loras",
+    )
+
+
+def _register_ltx_v3_2(builder: Aria2Builder) -> None:
+    builder.file_path(Path("ltx_v3_2_aria2.txt"))
+    # Eros
+    builder.add_url(
+        "https://civitai.red/api/download/models/2892069?type=Model&format=SafeTensor&size=full&fp=fp8",
+        "diffusion_models",
+    )
+
+    # Distilled model
+    builder.add_url(
+        "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/diffusion_models/ltx-2.3-22b-distilled_transformer_only_fp8_input_scaled_v3.safetensors?download=true",
+        "diffusion_models",
+    )
+
+    # Text encoder
+    builder.add_url(
+        "https://huggingface.co/GitMylo/LTX-2-comfy_gemma_fp8_e4m3fn/resolve/main/gemma_3_12B_it_fp8_e4m3fn.safetensors?download=true",
+        "text_encoders",
+    )
+
+    # Text projection
+    builder.add_url(
+        "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/text_encoders/ltx-2.3_text_projection_bf16.safetensors?download=true",
+        "clip",
+    )
+
+    # Video VAE
+    builder.add_url(
+        "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_video_vae_bf16.safetensors?download=true",
+        "vae",
+    )
+    # Audio VAE
+    builder.add_url(
+        "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_audio_vae_bf16.safetensors?download=true",
+        "vae",
+    )
+    # Preview VAE
+    builder.add_url(
+        "https://github.com/madebyollin/taehv/raw/main/safetensors/taeltx2_3.safetensors",
+        "vae",
+    )
+    # Latent upscale
+    builder.add_url(
+        "https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors?download=true",
+        "latent_upscale_models",
+    )
+    # Upscale model
+    builder.add_url(
+        "https://civitai.red/api/download/models/164677?type=Model&format=SafeTensor",
+        "upscale_models",
+    )
+    # Distilled Loras
+    builder.add_url(
+        "https://huggingface.co/TenStrip/LTX2.3_Distilled_Lora_1.1_Experiments/resolve/main/ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors?download=true",
+        "loras",
+    )
+    builder.add_url(
+        "https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-22b-distilled-lora-384-1.1.safetensors?download=true",
+        "loras",
+    )
+
+    # Loras
+    # https://civitai.red/models/1811313/dr34ml4y-all-in-one-nsfw-wanltx2?modelVersionId=2950842
+    builder.add_url(
+        "https://civitai.red/api/download/models/2950842?fileId=2830123",
+        "loras",
+    )
+    # https://civitai.red/models/2621242/epic-cumshots-ltx-23?modelVersionId=2946870
+    builder.add_url(
+        "https://civitai.red/api/download/models/2946870?fileId=2826136",
+        "loras",
+    )
+    # https://civitai.red/models/1648982/nsfw-posing-nude?modelVersionId=2949966
+    builder.add_url(
+        "https://civitai.red/api/download/models/2949966?fileId=2829314",
+        "loras",
+    )
+    # https://civitai.red/models/2509189/synth-pussy-ltx-23?modelVersionId=2820451
+    builder.add_url(
+        "https://civitai.red/api/download/models/2820451?fileId=2706435",
+        "loras",
+    )
+    # https://civitai.red/models/2497207/ltx-23-i2v-t2v-video-reasoning-lora-vbvr?modelVersionId=2848299
+    builder.add_url(
+        "https://civitai.red/api/download/models/2848299?fileId=2734400",
+        "loras",
+    )
+    # https://civitai.red/models/2535622/ltx-23-enhancers?modelVersionId=2849716
+    builder.add_url(
+        "https://civitai.red/api/download/models/2849716?fileId=2735885",
+        "loras",
+    )
+    # https://civitai.red/models/2535622/ltx-23-enhancers?modelVersionId=2849706
+    builder.add_url(
+        "https://civitai.red/api/download/models/2849706?fileId=2735868",
+        "loras",
+    )
+    # https://civitai.red/models/2531473/facials-and-cum-in-mouth?modelVersionId=2845053
+    builder.add_url(
+        "https://civitai.red/api/download/models/2845053?fileId=2731208",
+        "loras",
+    )
+    # https://civitai.red/models/2580360/sexgod-fingeringdildo-ltx-23?modelVersionId=2898896
+    builder.add_url(
+        "https://civitai.red/api/download/models/2898896?fileId=2776856",
+        "loras",
+    )
+
+_ENV_REGISTRARS: dict[str, Callable[[Aria2Builder], None]] = {
+    "upscalers": _register_upscalers,
+    "hunyuan": _register_hunyuan,
+    "flux": _register_flux,
+    "pony": _register_pony,
+    "zimage": _register_zimage,
+    "chroma": _register_chroma,
+    "qwen_image": _register_qwen_image,
+    "anima": _register_anima,
+    "wan": _register_wan,
+    "mmaudio": _register_mmaudio,
+    "ltx_v3_2": _register_ltx_v3_2,
+}
+
+_ENV_ALIASES: dict[str, str] = {
+    "upscaler": "upscalers",
+    "flux": "flux",
+    "pony": "pony",
+    "wan": "wan",
+    "wan2.2": "wan",
+    "wan2_2": "wan",
+    "z_image": "zimage",
+    "zimage": "zimage",
+    "chroma": "chroma",
+    "qwen": "qwen_image",
+    "qwen-image": "qwen_image",
+    "qwen_image": "qwen_image",
+    "anima": "anima",
+    "mmaudio": "mmaudio",
+    "ltx_v3_2": "ltx_v3_2",
+}
+
+
+def _normalize_env_name(name: str) -> str | None:
+    key = name.strip().lower()
+    if not key:
+        return None
+    if key in _ENV_REGISTRARS:
+        return key
+    return _ENV_ALIASES.get(key)
+
+
+def list_available_envs() -> list[str]:
+    """Return the list of canonical environment names supported by this module."""
+
+    return sorted(_ENV_REGISTRARS)
+
+
+def download_models_for_envs(
+    envs: Iterable[str],
+    *,
+    models_dir: Path | None = None,
+) -> None:
+    """Download models for the given logical environments using aria2c.
+
+    Unknown environment names raise ValueError so callers (like the CLI)
+    can decide whether to treat them as fatal.
+    """
+
+    normalized_envs: list[str] = []
+    for raw in envs:
+        canonical = _normalize_env_name(raw)
+        if canonical is None:
+            msg = f"Unknown model environment: {raw!r}"
+            raise ValueError(msg)
+        normalized_envs.append(canonical)
+
+    if not normalized_envs:
+        print("No valid model environments specified; nothing to download.")
+        return
+
+    base_dir = models_dir or Path("ComfyUI") / "models"
+    builder = Aria2Builder(comfyui_models_dir=base_dir)
+
+    for env_name in normalized_envs:
+        registrar = _ENV_REGISTRARS[env_name]
+        try:
+            registrar(builder)
+            input_file = builder.build()
+        except ValueError as exc:
+            print(
+                f"Skipping environment {env_name!r} due to configuration error: {exc}",
+                file=sys.stderr,
+            )
+            continue
+
+        _run_downloads(input_file)

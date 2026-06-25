@@ -1,0 +1,35 @@
+{
+    "custom_nodes": {
+        "https://github.com/yolain/ComfyUI-Easy-Use": {
+            "state": "installed",
+            "hash": "-"
+        },
+        "https://github.com/Jonseed/ComfyUI-Detail-Daemon": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/rgthree/rgthree-comfy": {
+            "state": "installed",
+            "hash": "-"
+        },
+        "https://github.com/pythongosssss/ComfyUI-Custom-Scripts": {
+            "state": "installed",
+            "hash": "-"
+        },
+        "https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler": {
+            "state": "not-installed",
+            "hash": "-"
+        },
+        "https://github.com/city96/ComfyUI-GGUF": {
+            "state": "installed",
+            "hash": "-"
+        }
+    },
+    "unknown_nodes": [
+        "MarkdownNote"
+    ]
+}
