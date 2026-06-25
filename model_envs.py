@@ -852,6 +852,46 @@ def _register_mmaudio(builder: Aria2Builder) -> None:
         "mmaudio",
     )
 
+def _register_anima(builder: Aria2Builder) -> None:
+    builder.file_path(Path("anima_aria2.txt"))
+
+    builder.add_url(
+        "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/diffusion_models/anima-base-v1.0.safetensors",  # noqa: E501
+        "diffusion_models",
+    )
+    builder.add_url(
+        "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/text_encoders/qwen_3_06b_base.safetensors",  # noqa: E501
+        "text_encoders",
+    )
+    builder.add_url(
+        "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors",  # noqa: E501
+        "vae",
+    )
+
+    # https://civitai.com/models/2560840/anima-turbo-lora
+    builder.add_url(
+        "https://civitai.com/api/download/models/2979642?fileId=2859181",
+        "loras",
+    )
+
+    # https://civitai.red/models/2544636/wai-anima?modelVersionId=2983680
+    builder.add_url(
+        "https://civitai.red/api/download/models/2983680?fileId=2863158",
+        "diffusion_models",
+    )
+
+    # https://civitai.red/models/599757/velvets-mythic-fantasy-styles-or-flux-pony-illustrious-zit-anima?modelVersionId=2918615
+    builder.add_url(
+        "https://civitai.red/api/download/models/2918615?fileId=2796968",
+        "loras",
+    )
+    # https://civitai.red/models/599757/velvets-mythic-fantasy-styles-or-flux-pony-illustrious-zit-anima?modelVersionId=3016131
+    builder.add_url(
+        "https://civitai.red/api/download/models/3016131?fileId=2895067",
+        "loras",
+    )
+
+
 def _register_ltx_v3_2(builder: Aria2Builder) -> None:
     builder.file_path(Path("ltx_v3_2_aria2.txt"))
     # Eros
@@ -968,6 +1008,7 @@ _ENV_REGISTRARS: dict[str, Callable[[Aria2Builder], None]] = {
     "zimage": _register_zimage,
     "chroma": _register_chroma,
     "qwen_image": _register_qwen_image,
+    "anima": _register_anima,
     "wan": _register_wan,
     "mmaudio": _register_mmaudio,
     "ltx_v3_2": _register_ltx_v3_2,
@@ -986,6 +1027,7 @@ _ENV_ALIASES: dict[str, str] = {
     "qwen": "qwen_image",
     "qwen-image": "qwen_image",
     "qwen_image": "qwen_image",
+    "anima": "anima",
     "mmaudio": "mmaudio",
     "ltx_v3_2": "ltx_v3_2",
 }
