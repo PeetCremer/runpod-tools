@@ -1,7 +1,6 @@
 /.venv
 /ComfyUI
 /workflows
-/models.ipynb
 /.DS_Store
 __pycache__/
 .env
