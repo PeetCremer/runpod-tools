@@ -44,11 +44,14 @@ RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://
 # Install ComfyUI and dependencies
 COPY ./workflow_deps ./workflow_deps
 RUN comfy --workspace=ComfyUI --skip-prompt install --nvidia && \
+    printf '%s\n' '[default]' 'network_mode = personal_cloud' 'security_level = normal' > ComfyUI/user/__manager/config.ini && \
+    test -f ComfyUI/user/__manager/config.ini && \
     # ComfyUI-MMAudio is not indexed
     git -C ComfyUI/custom_nodes clone https://github.com/kijai/ComfyUI-MMAudio && \
     pip install -r ComfyUI/custom_nodes/ComfyUI-MMAudio/requirements.txt && \
     # Install workflow dependencies
-    for WORKFLOW_DEPS in workflow_deps/*_deps.json; do comfy --recent node install-deps --deps ${WORKFLOW_DEPS}; done
+    for WORKFLOW_DEPS in workflow_deps/*_deps.json; do comfy --recent node install-deps --deps ${WORKFLOW_DEPS}; done && \
+    ComfyUI/.venv/bin/pip install --no-cache-dir pytest
 
 # Notebook to run ComfyUI should be already available in workspace
 COPY ./run_comfy.ipynb ./run_comfy.ipynb
